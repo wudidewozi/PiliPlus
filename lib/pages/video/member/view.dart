@@ -57,6 +57,7 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
   late ColorScheme colorScheme;
   late final _isRefreshing = RxBool(false);
   bool _didLocateCurrent = false;
+  bool _pendingTop = false;
 
   @override
   void initState() {
@@ -80,6 +81,7 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
   void _locateCurrent(List<SpaceArchiveItem>? list) {
     if (_didLocateCurrent) return;
     _didLocateCurrent = true;
+    if (_controller.sortFromTop) return;
     final index = list?.indexWhere((e) => e.bvid == _bvid) ?? -1;
     if (index <= 0) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -209,9 +211,14 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
   Widget _buildSortBtn() {
     return TextButton.icon(
       style: Style.buttonStyle,
-      onPressed: () => _controller
-        ..lastAid = widget.videoDetailController.aid.toString()
-        ..queryBySort(),
+      onPressed: () {
+        // 排序后从该排序的第一条开始展示, 不再定位到当前视频
+        _didLocateCurrent = true;
+        _pendingTop = true;
+        _controller
+          ..lastAid = widget.videoDetailController.aid.toString()
+          ..queryBySort();
+      },
       icon: Icon(
         Icons.sort,
         size: 16,
@@ -248,6 +255,16 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
 
   Widget _buildVideoSlivers(List<SpaceArchiveItem>? response) {
     _locateCurrent(response);
+    if (_pendingTop) {
+      _pendingTop = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final scrollController = _controller.scrollController;
+        if (scrollController.hasClients) {
+          scrollController.jumpTo(0);
+        }
+      });
+    }
     if (response == null || response.isEmpty) {
       return HttpError(onReload: _controller.onReload);
     }

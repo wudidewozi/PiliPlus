@@ -89,9 +89,12 @@ class HorizontalMemberPageController
   bool hasPrev = true;
   bool hasNext = true;
 
+  /// 点击排序后从该排序的第一条开始, 不再以当前视频为锚点
+  bool sortFromTop = false;
+
   @override
   Future<LoadingState<SpaceArchiveData>> customGetData() async {
-    final isLocating = page == 1;
+    final isLocating = page == 1 && !sortFromTop;
     final res = await MemberHttp.spaceArchive(
       type: .video,
       mid: mid,
@@ -108,8 +111,13 @@ class HorizontalMemberPageController
       seriesId: null,
       includeCursor: isLocating ? true : null,
     );
-    if (isLocating && res is Success<SpaceArchiveData>) {
-      await _fillNewer(res.response);
+    if (res is Success<SpaceArchiveData>) {
+      if (isLocating) {
+        await _fillNewer(res.response);
+      } else if (page == 1) {
+        // 从顶部开始排序时没有"更新方向", 直接按接口返回判断
+        hasPrev = res.response.hasPrev ?? false;
+      }
     }
     return res;
   }
@@ -165,6 +173,7 @@ class HorizontalMemberPageController
   void queryBySort() {
     if (isLoading) return;
     order = order == .pubdate ? .click : .pubdate;
+    sortFromTop = true;
     onReload();
   }
 }
