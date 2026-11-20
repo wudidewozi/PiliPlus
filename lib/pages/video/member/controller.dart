@@ -94,16 +94,14 @@ class HorizontalMemberPageController
   @override
   Future<LoadingState<SpaceArchiveData>> customGetData() async {
     final isLocating = page == 1 && !sortFromTop;
+    final aid = isLocating ? currAid : isLoadPrevious ? firstAid : lastAid;
+    final sortAsc = !isLocating && isLoadPrevious;
     final res = await MemberHttp.spaceArchive(
       type: .video,
       mid: mid,
-      aid: isLocating
-          ? currAid
-          : isLoadPrevious
-          ? firstAid
-          : lastAid,
+      aid: aid,
       order: order,
-      sort: !isLocating && isLoadPrevious ? .asc : null,
+      sort: sortAsc ? .asc : null,
       pn: null,
       next: null,
       seasonId: null,
@@ -158,18 +156,18 @@ class HorizontalMemberPageController
   }
 
   @override
-  Future<void> onReload() {
+  Future<void> onReload() async {
     firstAid = null;
     lastAid = null;
     hasNext = true;
     hasPrev = true;
     isEnd = false;
+    // 不能复用 onRefresh: 它会把 isLoadPrevious 置 true, 首屏请求就会带上
+    // sort=asc, 取到最老/播放最少的一页, 排序看起来完全不对。
+    isLoadPrevious = false;
     page = 1;
-    // 注意: 这里不要 jumpToTop。列表已经停在顶部时 jumpTo(0) 会同步发出
-    // ScrollEndNotification(pixels == 0), 触发 _loadPrevAndKeepPos -> onRefresh,
-    // 把真正的 reload 用 isLoading 挡掉, 排序就永远不生效。
-    // 回到顶部交给数据到达后由 view 处理。
-    return super.onReload();
+    loadingState.value = LoadingState<List<SpaceArchiveItem>?>.loading();
+    await queryData();
   }
 
   void queryBySort() {
