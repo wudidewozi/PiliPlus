@@ -6,7 +6,6 @@ import 'package:PiliPlus/models_new/space/space_archive/data.dart';
 import 'package:PiliPlus/models_new/space/space_archive/item.dart';
 import 'package:PiliPlus/pages/common/common_list_controller.dart';
 import 'package:PiliPlus/utils/accounts.dart';
-import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:get/get.dart';
 
 class HorizontalMemberPageController
@@ -166,7 +165,10 @@ class HorizontalMemberPageController
     hasPrev = true;
     isEnd = false;
     page = 1;
-    scrollController.jumpToTop();
+    // 注意: 这里不要 jumpToTop。列表已经停在顶部时 jumpTo(0) 会同步发出
+    // ScrollEndNotification(pixels == 0), 触发 _loadPrevAndKeepPos -> onRefresh,
+    // 把真正的 reload 用 isLoading 挡掉, 排序就永远不生效。
+    // 回到顶部交给数据到达后由 view 处理。
     return super.onReload();
   }
 

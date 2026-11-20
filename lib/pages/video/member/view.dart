@@ -124,6 +124,7 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
 
   bool onNotification(ScrollEndNotification notification) {
     if (notification.metrics.pixels == 0 &&
+        _controller.page > 1 &&
         _controller.hasPrev &&
         !_controller.isLoading) {
       _loadPrevAndKeepPos();
