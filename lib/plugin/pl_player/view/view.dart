@@ -1778,12 +1778,12 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           // 锁
           if (plPlayerController.showFsLockBtn)
             ViewSafeArea(
-              right: false,
-              left: !plPlayerController.removeSafeArea,
+              left: false,
+              right: !plPlayerController.removeSafeArea,
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.centerRight,
                 child: FractionalTranslation(
-                  translation: const Offset(1, -0.4),
+                  translation: const Offset(-1, -0.4),
                   child: Obx(
                     () => Offstage(
                       offstage: !plPlayerController.showControls.value,
@@ -1822,13 +1822,13 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           // 截图
           if (plPlayerController.showFsScreenshotBtn)
             ViewSafeArea(
-              left: false,
-              right: !plPlayerController.removeSafeArea,
+              right: false,
+              left: !plPlayerController.removeSafeArea,
               child: Obx(
                 () => Align(
-                  alignment: Alignment.centerRight,
+                  alignment: Alignment.centerLeft,
                   child: FractionalTranslation(
-                    translation: const Offset(-1, -0.4),
+                    translation: const Offset(1, -0.4),
                     child: Offstage(
                       offstage: !plPlayerController.showControls.value,
                       child: DecoratedBox(
