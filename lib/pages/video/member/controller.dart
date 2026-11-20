@@ -90,23 +90,58 @@ class HorizontalMemberPageController
   bool hasNext = true;
 
   @override
-  Future<LoadingState<SpaceArchiveData>> customGetData() =>
-      MemberHttp.spaceArchive(
-        type: .video,
-        mid: mid,
-        aid: page == 1
-            ? currAid
-            : isLoadPrevious
-            ? firstAid
-            : lastAid,
-        order: order,
-        sort: page != 1 && isLoadPrevious ? .asc : null,
-        pn: null,
-        next: null,
-        seasonId: null,
-        seriesId: null,
-        includeCursor: page == 1 ? true : null,
-      );
+  Future<LoadingState<SpaceArchiveData>> customGetData() async {
+    final isLocating = page == 1;
+    final res = await MemberHttp.spaceArchive(
+      type: .video,
+      mid: mid,
+      aid: isLocating
+          ? currAid
+          : isLoadPrevious
+          ? firstAid
+          : lastAid,
+      order: order,
+      sort: !isLocating && isLoadPrevious ? .asc : null,
+      pn: null,
+      next: null,
+      seasonId: null,
+      seriesId: null,
+      includeCursor: isLocating ? true : null,
+    );
+    if (isLocating && res is Success<SpaceArchiveData>) {
+      await _fillNewer(res.response);
+    }
+    return res;
+  }
+
+  /// 以当前视频为锚点请求时, 接口只返回当前视频及其更早的投稿,
+  /// 这里补一页更新的投稿拼到前面, 否则侧栏里永远看不到之后的视频
+  Future<void> _fillNewer(SpaceArchiveData anchorPage) async {
+    final anchorItems = anchorPage.item;
+    if (anchorItems == null || anchorItems.isEmpty) {
+      hasPrev = false;
+      return;
+    }
+    final res = await MemberHttp.spaceArchive(
+      type: .video,
+      mid: mid,
+      aid: currAid,
+      order: order,
+      sort: .asc,
+    );
+    if (res case Success<SpaceArchiveData>(:final response)) {
+      final newer = response.item;
+      hasPrev = newer != null && newer.isNotEmpty
+          ? response.hasPrev ?? false
+          : false;
+      if (newer != null && newer.isNotEmpty) {
+        anchorPage.item = [...newer, ...anchorItems];
+      }
+      return;
+    }
+    // 更新方向请求失败时, 保留接口返回的可上滑状态
+    hasPrev = anchorPage.hasPrev ?? false;
+  }
 
   @override
   Future<void> onRefresh() {

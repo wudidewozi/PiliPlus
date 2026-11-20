@@ -56,6 +56,7 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
   late final String _bvid;
   late ColorScheme colorScheme;
   late final _isRefreshing = RxBool(false);
+  bool _didLocateCurrent = false;
 
   @override
   void initState() {
@@ -70,13 +71,24 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
     _bvid = widget.videoDetailController.bvid;
     if (_controller.loadingState.value
         case Success<List<SpaceArchiveItem>?> res) {
-      final index = res.response?.indexWhere((e) => e.bvid == _bvid) ?? -1;
-      if (index != -1) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _controller.scrollController.jumpTo(112.0 * index);
-        });
-      }
+      _locateCurrent(res.response);
     }
+  }
+
+  /// 首屏会把「更新的投稿」拼到当前视频前面,
+  /// 这里滚回当前视频, 保持打开即定位到正在看的视频
+  void _locateCurrent(List<SpaceArchiveItem>? list) {
+    if (_didLocateCurrent) return;
+    _didLocateCurrent = true;
+    final index = list?.indexWhere((e) => e.bvid == _bvid) ?? -1;
+    if (index <= 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final scrollController = _controller.scrollController;
+      if (scrollController.hasClients) {
+        scrollController.jumpTo(112.0 * index);
+      }
+    });
   }
 
   @override
@@ -226,46 +238,51 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
         ),
         itemExtent: 112,
       ),
-      Success(:final response) =>
-        response != null && response.isNotEmpty
-            ? SliverMainAxisGroup(
-                slivers: [
-                  _buildHeader(),
-                  SliverFixedExtentList.builder(
-                    itemBuilder: (context, index) {
-                      if (index == response.length - 1 && _controller.hasNext) {
-                        _controller.onLoadMore();
-                      }
-                      final videoItem = response[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: VideoCardHMemberVideo(
-                          videoItem: videoItem,
-                          bvid: _bvid,
-                          onTap: () {
-                            Get.back();
-                            widget.ugcIntroController.onChangeEpisode(
-                              BaseEpisodeItem(
-                                bvid: videoItem.bvid,
-                                cid: videoItem.cid,
-                                cover: videoItem.cover,
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    itemCount: response.length,
-                    itemExtent: 112,
-                  ),
-                ],
-              )
-            : HttpError(onReload: _controller.onReload),
+      Success(:final response) => _buildVideoSlivers(response),
       Error(:final errMsg) => HttpError(
         errMsg: errMsg,
         onReload: _controller.onReload,
       ),
     };
+  }
+
+  Widget _buildVideoSlivers(List<SpaceArchiveItem>? response) {
+    _locateCurrent(response);
+    if (response == null || response.isEmpty) {
+      return HttpError(onReload: _controller.onReload);
+    }
+    return SliverMainAxisGroup(
+      slivers: [
+        _buildHeader(),
+        SliverFixedExtentList.builder(
+          itemBuilder: (context, index) {
+            if (index == response.length - 1 && _controller.hasNext) {
+              _controller.onLoadMore();
+            }
+            final videoItem = response[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: VideoCardHMemberVideo(
+                videoItem: videoItem,
+                bvid: _bvid,
+                onTap: () {
+                  Get.back();
+                  widget.ugcIntroController.onChangeEpisode(
+                    BaseEpisodeItem(
+                      bvid: videoItem.bvid,
+                      cid: videoItem.cid,
+                      cover: videoItem.cover,
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+          itemCount: response.length,
+          itemExtent: 112,
+        ),
+      ],
+    );
   }
 
   Widget _buildUserInfo(MemberInfoModel memberInfoModel) {
